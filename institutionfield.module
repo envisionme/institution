@@ -1,0 +1,295 @@
+<?php
+// $Id$
+
+drupal_add_css(drupal_get_path('module', 'institutionfield').'/institutionfield.css');
+drupal_add_js(drupal_get_path('module', 'institutionfield').'/institutionfield.js');
+
+//==========================================//
+// DEFINE THE FIELD
+//==========================================//
+
+/**
+* Implementation of hook_field_info().
+*/
+function institutionfield_field_info() {
+  return array(
+    //~ The machine name of the field.
+    'institutionfield' => array(
+      //~ The human-readable label of the field that will be seen in the Manage fields screen.
+      'label' => t('Institution'),
+      //~ A description of what type of data the field stores.
+      'description' => t('Store data about an institution.'),
+    ),
+  );
+}
+
+/**
+* Implementation of hook_field_settings().
+*/
+function institutionfield_field_settings($op, $field) {
+  switch ($op) {
+    case 'database columns':
+    //~ Define the colums that needs to be created in the database for storing the field data
+      $columns['institution'] = array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+        'sortable' => TRUE,
+        'views' => TRUE,
+      );
+      $columns['achievement'] = array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+        'sortable' => TRUE,
+        'views' => TRUE,
+      );
+      $columns['degree_level'] = array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+        'sortable' => TRUE,
+        'views' => TRUE,
+      );
+      $columns['year'] = array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+        'sortable' => TRUE,
+        'views' => TRUE,
+      );
+      return $columns;
+  }
+}
+
+/**
+* Implementation of hook_field().
+*/
+function institutionfield_field($op, &$node, $field, &$items, $teaser, $page) {
+  switch ($op) {
+    case 'validate':
+      foreach ($items as $delta => $item) {
+          if (!empty($item['institution']) && empty($item['achievement'])) {
+          //~ if(empty($items['position'])) {
+            //~ $error_element = isset($item['_error_element']) ? $item['_error_element'] : '';
+            form_set_error($item['achievement'], 'Achievement cannot be empty. Please provide an achievement for each job.');
+            }
+          }
+      return $items;
+    case 'presave':
+      foreach ($items as $delta => $value) {
+        //~ Excecute just before saving values to the datbase
+        _institution_process($items[$delta], $delta, $field, $node);
+      }
+    break;
+  }
+}
+
+function _institution_process(&$item, $delta = 0, $field, $node) {
+  
+  //Handle taxonomy for Institution subfield
+  $institution_tax_term = taxonomy_get_term_by_name($item['institution']);
+  
+  if (empty($institution_tax_term)) {
+    $newterm = array('vid' => 12, 'name' => $item['institution']);
+    taxonomy_save_term($newterm);
+  }
+  $institution_tax_term = taxonomy_get_term_by_name($item['institution']);
+  
+  $node->taxonomy[12][] = $institution_tax_term[0]->tid;
+  
+  //Handle taxonomy for Achievement subfield
+  $achievement_tax_term = taxonomy_get_term_by_name($item['achievement']);
+  
+  if (empty($achievement_tax_term)) {
+    $newterm = array('vid' => 13, 'name' => $item['achievement']);
+    taxonomy_save_term($newterm);
+  }
+  $achievement_tax_term = taxonomy_get_term_by_name($item['achievement']);
+  
+  $node->taxonomy[13][] = $achievement_tax_term[0]->tid;
+  
+  //Handle Degree Level for Industry subfield
+  $node->taxonomy[24][] = $item['industry'];
+  
+  //Set current student
+  if ($item['currentstudent'] == 1) {
+    $item['year'] = 'Current';
+  }
+ 
+}
+
+/**
+* Implementation of hook_content_is_empty().
+*/
+function institutionfield_content_is_empty($item, $field) {
+  if (empty($item['institution'])) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+//==========================================//
+// DEFINING A FORMATTER
+//==========================================//
+
+/***/
+/* Implementation of hook_theme().*/
+/**/
+function institutionfield_theme() {
+  return array(
+    // Themes for the formatters.
+    'institutionfield_formatter_default' => array(
+      'arguments' => array('element' => NULL),
+    ),
+  );
+}
+
+/**
+* Implementation of hook_field_formatter_info().
+*/
+function institutionfield_field_formatter_info() {
+  return array(
+    // The machine name of the formatter.
+    'default' => array(
+      // The human-readable label shown on the Display fields screen.
+      'label' => t('Default Formatter'),
+      // An array of the field types this formatter can be used on.
+      'field types' => array('institutionfield'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+  );
+}
+
+
+/**
+* Theme function for 'default' institutionfield formatter.
+*/
+function theme_institutionfield_formatter_default($element) {
+  $output  = '<div class="institution-field">'.$element['#item']['institution'].'</div>';
+  $output .= '<div class="achievement-field">'.$element['#item']['achievement'].'</div>';
+  $output .= '<div class="year">'.substr($element['#item']['year'], 0, 4).'</div>';
+
+  return $output;
+}
+
+//==========================================//
+// DEFINING A WIDGET
+//==========================================//
+
+/**
+* Implementation of hook_widget_info().
+*/
+function institutionfield_widget_info() {
+  return array(
+    // The machine name of the widget.
+    'institutionfield_widget' => array(
+      // The human-readable label of the field that will be seen in the Manage fields screen.
+      'label' => t('Institution widget'),
+      // An array of the field types this widget can be used with.
+      'field types' => array('institutionfield'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+      'callbacks' => array(
+        'default value' => CONTENT_CALLBACK_DEFAULT,
+      ),
+    ),
+  );
+}
+
+/**
+* Implementation of hook_widget().
+*/
+function institutionfield_widget(&$form, &$form_state, $field, $items, $delta = 0) {
+     
+    $vid = 12; //Institution vocabulary id
+    
+    //~ print_r($items[$delta]['year']);
+    
+    //~ print_r(time());
+    
+    $default_value = isset($items[$delta]['year']) ? $items[$delta]['year'] : date('Y', time());
+    
+    $element['institution'] = array(
+      '#type' => 'textfield', 
+      '#title' => t('Institution'), 
+      '#maxlength' => 50, 
+      '#autocomplete_path' => 'taxonomy/autocomplete/'.$vid, 
+      '#default_value' => $value = isset($items[$delta]['institution']) ? $items[$delta]['institution'] : NULL, 
+      '#weight' => -1,
+    );
+    
+    $vid = 13; //Achievement vocabulary id
+    
+    $element['achievement'] = array(
+      '#type' => 'textfield', 
+      '#title' => t('Achievement'), 
+      '#maxlength' => 50, 
+      '#autocomplete_path' => 'taxonomy/autocomplete/'.$vid, 
+      '#default_value' => $value = isset($items[$delta]['achievement']) ? $items[$delta]['achievement'] : NULL,
+      '#weight' => 0,
+    );
+    
+    $vid = 24; //Degree level vocabulary id
+    
+    //Load the vocabulary to populate the dropdown select
+    $vocabulary = taxonomy_get_tree($vid);
+    
+    //Create the array to hold possible dropdown values
+    $degree_levels = array();
+    
+    //Populate the industries array_merge
+    foreach ($vocabulary as $term) {
+      $degree_levels[] = $term->name;
+    }
+    
+    $element['degree_level'] = array(
+      '#type' => 'select', 
+      '#title' => t('Degree Level'), 
+      '#maxlength' => 50,
+      '#options' => $degree_levels,
+      '#autocomplete_path' => 'taxonomy/autocomplete/'.$vid, 
+      '#default_value' => $value = isset($items[$delta]['degree_level']) ? $items[$delta]['degree_level'] : NULL,
+      '#weight' => 1,
+      '#prefix' => '<div class="field-degree-level">',
+      '#suffix' => '</div>',
+    );
+    
+    $element['year'] = array(
+      '#type' => 'date_select',
+      '#title' => 'Achieved in',
+      '#date_format' => 'Y',
+      '#date_label_position' => 'within',
+      '#date_year_range' => '-50:0',
+      '#default_value' => isset($items[$delta]['year']) ? $items[$delta]['year'] : date('Y', time()),
+      '#weight'        => 2,
+      '#prefix' => '<div class="field-year">',
+      '#suffix' => '</div>',
+    );
+    
+    if ($items[$delta]['year'] == 'Current')
+      $def_val = 1;
+    else $def_val = 0;
+    
+    $element['currentstudent'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('I am currently studying here'),
+      '#default_value' => $def_val,
+      '#weight' => 3,
+      '#prefix' => '<div class="field-currentstudent">',
+      '#suffix' => '</div>',
+    );
+ 
+  // Used so that hook_field('validate') knows where to
+  // flag an error in deeply nested forms.
+  if (empty($form['#parents'])) {
+    $form['#parents'] = array();
+  }
+  $element['_error_element'] = array(
+    '#type' => 'institution',
+    '#value' => implode('][', array_merge($form['#parents'], array('institution'))),
+  );
+ 
+  return $element;
+}
+
+

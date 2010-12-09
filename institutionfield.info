@@ -1,0 +1,6 @@
+; $Id$
+name = Institution Field
+description = Defines an Institution field with required subfields.
+dependencies[] = content
+package = NoJoShmo
+core = 6.x

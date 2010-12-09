@@ -1,0 +1,37 @@
+<?php
+
+/**
+* @file
+* Implementation of hook_install().
+*/
+function institutionfield_install() {
+  drupal_load('module', 'content');
+  content_notify('install', 'institutionfield');
+}
+
+/**
+* Implementation of hook_uninstall().
+**/
+function institutionfield_uninstall() {
+  drupal_load('module', 'content');
+  content_notify('uninstall', 'institutionfield');
+}
+
+/**
+* Implementation of hook_enable().
+*/
+function institutionfield_enable() {
+  drupal_load('module', 'content');
+  content_notify('enable', 'institutionfield');
+}
+
+/**
+* Implementation of hook_disable().
+*
+* Notify content module when this module is disabled.
+*/
+function institutionfield_disable() {
+  drupal_load('module', 'content');
+  content_notify('disable', 'institutionfield');
+}
+?>

@@ -1,0 +1,15 @@
+.field-degree-level {
+	width: 250px;
+	float: left;
+}
+
+.field-year {
+	width: 250px;
+	float: left;
+	padding-left: 10px;
+}
+
+.field-currentstudent {
+	padding-top: 3px;
+	clear: both;
+}
